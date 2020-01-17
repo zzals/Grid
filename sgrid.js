@@ -1,5 +1,3 @@
-var fui_filter_popup, 
-	fui_FAVORITY_POPUP;
 $.fn.fuiGrid = function (data) {
 		var default_option = {
 				width : null,
@@ -419,7 +417,7 @@ var fui = {
 										},
 										width : 370
 								}
-								fui_FAVORITY_POPUP = fui.popup(opt);
+								fui.popup(opt);
 							});
 							optBtnFavo.append(favoOpt);
 							gridOptions.append(optBtnFavo);
@@ -2062,7 +2060,6 @@ var fui = {
 						}
 						
 						$($tr.get(0).lastChild).addClass("last");
-					//	$tr.children("td:eq(0)").html($('<span>').text(tally.total.text));
 
 						$(tbod).append($tr);
 					}

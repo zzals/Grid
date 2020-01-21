@@ -1,0 +1,231 @@
+// 재귀를 이용한 헤드 생성.
+gridHead : function(json){
+					var hd_div = $('<div>',({"class":"fui_grid_head"})), 
+						hd_tbl = $('<table>').addClass("layout_fix"),
+						colgrp = $('<colgroup>'),
+						hd_thead = $('<thead>').addClass("dftThead"),
+						headTrArr = [],
+						thClass;
+					
+					var columnLen = column.length,
+						subDepthArr = [],
+						rowspanNum = 0;
+					// get sub depth
+					var getSubDepth = function(obj, depth){
+						if(typeof obj == 'object'){
+							for(var i=0, len = obj.length; i<len; i++){	
+								if(obj[i].sub){
+									var subDepth = depth; 
+									subDepth += 1;
+									subDepthArr.push(subDepth);
+									getSubDepth(obj[i].sub, subDepth);
+								}
+							}
+						}
+					}
+					getSubDepth(column, 1);
+					rowspanNum = Math.max.apply(null, subDepthArr);
+					if(rowspanNum < 0){
+						rowspanNum = 1;
+					}
+					// Head Tr Make
+					for(var i=0; i<rowspanNum; i++){
+						headTrArr.push($('<tr>'));
+					}
+					for(var i=0; i<columnLen; i+=1){	
+						
+						/* 일반 컬럼, 
+						 * 최상위 컬럼 
+						 * */
+						if(!column[i].unused && column[i].caption){
+							var col = $('<col>'),
+								th = $('<th>'),
+								field = column[i].field,
+								captions = column[i].caption,
+								columnClass = column[i].clas,
+								caption, captionDiv;
+							
+							if(columnClass){
+								thClass = columnClass;
+							}else{
+								thClass = captions;
+							}
+							th.addClass(thClass);
+							
+							if(i===0){
+								th.addClass("first");
+							}
+							
+							//	jquery element object
+							if(typeof captions === "object"){
+								var $obj = column[i].caption;
+								caption = captions;
+								if(caption.is("input:checkbox")){
+									caption.on("click", function(){
+										var ta = gridDiv.children(".fleta_grid").children('.fui_grid_body').children("table");
+										if($obj.prop("checked")){
+											ta.find("input:checkbox").prop("checked",true);
+										}else{
+											ta.find("input:checkbox").prop("checked",false);
+										}
+									});
+								}else if(caption.is("select")){
+									var obj = caption,
+										objNm = obj.attr("name");
+									if(objNm){
+										var objInp = $("<input>",({"type":"hidden","name":objNm,"value":obj.val()})).appendTo(gridDiv.children("form"));
+										obj.on("change", function(){
+											objInp.val($(this).val());
+											gridObj.madeAjaxGrid();
+										});
+									}
+								}
+								
+								col.width(column[i].size).addClass(thClass);
+								colgrp.append(col);
+							}else{
+								caption = gridObj.madeLanguage.langCaption(captions);
+							}
+							
+							// sub의 colspan 구하기
+							var get_sub_col = function getSubCol(parent, child, func){
+								func(parent, child);
+								if(typeof child != 'undefined'){
+									var childObj = child[0];
+									var i=0;
+									while(childObj){
+										getSubCol(parent, childObj.sub, func);
+										getSubCol(childObj, childObj.sub, func);
+										i++;
+										childObj = child[i];
+									}
+								}
+							}
+							// sub 재귀함수 start
+							var subColumnMade = function(subColumn, subTr, subDep, subCls){
+								var sub_len = subColumn.length;
+								for(var j=0; j<sub_len; j+=1){	
+									if((!subColumn[j].unused && subColumn[j].caption) || typeof subColumn[j] == 'string' ){
+										var sub_td = $('<th>'), //,
+											sub_col = $('<col>'),
+											sub_field = subColumn[j].field,
+										 	subCaptions = subColumn[j].caption || subColumn[j],
+										 	sub_caption = subCaptions.split("[")[0],
+										 	sub_class;
+										
+										sub_caption = gridObj.madeLanguage.langCaption(subCaptions);
+										sub_class = subCls + "-" + j;
+										if(subColumn[j].clas){
+											sub_class += "-" + subColumn[j].clas;
+										}
+										sub_td.addClass(sub_class);
+										sub_col.width(subColumn[j].size).addClass(sub_class);
+										
+										var captionTxt = $('<div>').html(sub_caption);
+										if(subColumn[j].colspan > 0){
+											sub_td.attr({"colspan":subColumn[j].colspan}); 
+										}
+										sub_td.append(captionTxt); 
+										
+										if(subColumn[j].name){
+											gridObj.madeSort(captionTxt, subColumn[j].name);
+										}
+										
+										if(subColumn[j].sub){
+											var subDepth = subDep; 
+											subDepth += 1;
+											subColumnMade(subColumn[j].sub, headTrArr[subDepth], subDepth, sub_class);
+										}else{
+											var rowNum = rowspanNum - subDep;
+											sub_td.attr({"rowspan":rowNum});
+										}
+										
+										if(sub_caption){ // 언어 json에 공백값이면 사용하지 않음.
+											subTr.append(sub_td);
+											if(!subColumn[j].sub){
+												colgrp.append(sub_col);											
+											}
+										}
+									} 
+								} // for end
+							} // func end
+							
+							
+							/* 
+							 * 서브 컬럼이 존재 할때 
+							 */
+							if(!column[i].unused && column[i].sub){
+								// sub 컬럼이 특별한 스트링으로 넘어왔을때 (switch).
+								if(typeof column[i].sub === "string"){
+									try {
+										var key = column[i].sub;
+										var subObj = [],
+											obj;
+										
+										if(is_array(json)){
+											obj = json[0][key];
+										}else{
+											obj = json[key];
+										}
+										sub_len = obj.length;
+									} catch (e) {
+										console.log(e);
+									}
+									
+									for(var j=0; j<sub_len; j+=1){	
+										subObj.push({"caption":obj[j]});
+									}
+									
+									subColumnMade(subObj, headTrArr[1], 1, column[i].clas);
+									th.attr({"colspan":sub_len}).append($('<div>').html(caption)); 
+								}else{
+									// 서브 컬럼의 colspan 값 구하기
+									get_sub_col(column[i], column[i].sub, function(parent, child){
+										if(!parent.colspan){
+											parent.colspan = 0;
+										}
+										if(typeof child != 'undefined'){
+											for(var i=0; i<child.length; i++){
+												if(!child[i].sub){
+													parent.colspan += 1;
+												}
+											}
+										}
+									});
+									
+									/* init */
+									subColumnMade(column[i].sub, headTrArr[1], 1, column[i].clas);
+									
+									th.attr({"colspan":column[i].colspan}).append($('<div>').html(caption)); 
+									
+								}
+								
+							}else{
+								var captionTxt = $('<div>').html(caption);
+								th.attr({"rowspan":rowspanNum,"col":i}).append(captionTxt);
+								
+								if(column[i].name){
+									gridObj.madeSort(captionTxt, column[i].name);
+								}
+								if(caption){ // 언어 json에 공백값이면 사용하지 않음.
+									col.width(column[i].size).addClass(thClass);
+									colgrp.append(col);
+								}
+							} // sub column end	
+							
+							
+							if(caption){ // 언어 json에 공백값이면 사용하지 않음.
+								headTrArr[0].append(th);
+							}
+						}
+						
+					} // for end		
+					
+					
+					hd_thead.append(headTrArr);
+					
+					
+					hd_tbl.append([colgrp, hd_thead]);
+					hd_div.append(hd_tbl);
+					return hd_div;
+				},

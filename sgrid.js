@@ -61,7 +61,7 @@ $.fn.fuiGrid = function (data) {
 
 				if(typeof jsonObj === "undefined" || typeof jsonObj !== "object" && jsonObj != 0){
 					
-					$.ajaxSettings.traditional = true;  
+				//	$.ajaxSettings.traditional = true;  
 					$.ajax({
 						type : "post",
 						url : setting.url,
@@ -2413,7 +2413,7 @@ var fui = {
 					this.closePopup();
 					this.modal().loading();
 					var pop = $('<div>').attr("id","pop");
-					$.ajaxSettings.traditional = true;  
+				//	$.ajaxSettings.traditional = true;  
 					$.ajax({
 						async : true,
 						url : opt.url,
@@ -2546,7 +2546,7 @@ var fui = {
 					this.closePopup();
 					var layerPop = $("<div>").attr("id","layerPop");
 					var pop = $('<div>').attr("id","pop").addClass("editPop");
-					$.ajaxSettings.traditional = true;  
+				//	$.ajaxSettings.traditional = true;  
 					$.ajax({
 						async : true,
 						url : opt.url,

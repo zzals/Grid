@@ -10,14 +10,21 @@ class SEGrid{
 	constructor(area, setting){
 		this.area = area;
 		this.setting = setting;
-		
+
 		this.column = this.setting.column,
 		this.tally = this.setting.tally,
 		this.colSize = this.column.length,
 		this.gridPage = 1, 
 		this.gridListSize, 
 		this.filter = [];
-	}
+    }
+    
+    set gridPage(value){
+        this._gridPage = value;
+    }
+    get gridPage(){
+        return this._gridPage;
+    }
 
 	init(){
 
@@ -399,9 +406,9 @@ class SEGrid{
 		
 		let	unit = frm.unit.value,
 			pageNo = frm.pageNo.value,
-			listCnt = getCookie("fletaListSize") || frm.listCnt.value,
-			clas, subNum = 0, ssubNum = 0;
-		let colClas;
+			listCnt = getCookie("fletaListSize") || frm.listCnt.value;
+        let colClas;
+        alert(listCnt)
 		
 		bd_div.setAttribute("class","fui_grid_body");
 			
@@ -802,7 +809,114 @@ class SEGrid{
 		bd_div.append(bd_tbl);
 
 		return bd_div;
-	}
+    }
+    
+    //footer
+    gridFooter (allListCnt) {
+        var footer = $('<div>').addClass("fui_grid_footer");
+        // paging
+        if(this.setting.paging.use){
+            this.setting.paging.totalSize = allListCnt;
+            footer.append(this.gridPaging());
+        //    footer.append(gridObj.madeListCntBox());
+        }
+        // etc Objects - button
+        if(this.setting.footer.length > 0){
+            var footerObj = gridDefOpt.footer;
+            var buttonArea = $('<div>',({"id":"buttonArea"}));
+            $(footerObj).each(function(i){
+                var obj = $(this);
+                buttonArea.append(obj);
+            });
+            footer.append(buttonArea);
+        }
+        return footer.get(0);
+    }
+
+    gridPaging (){
+        let gridDiv = this.area
+        var frm = gridDiv.children("form");
+        var cnt = getCookie("fletaListSize") && frm.get(0).listCnt.value;
+        var opts = {
+                totalSize : this.setting.paging.totalSize,
+                pageNo : this.gridPage,
+                listSize : cnt,  // 글 목록 갯수
+                pageSize : 10  //페이지 갯수
+        };
+        return ({
+                init : function() {
+                    var totalPage = Math.ceil(opts.totalSize/opts.listSize),
+                        totalPageList = Math.ceil(totalPage/opts.pageSize),
+                        pageList = Math.ceil(opts.pageNo/opts.pageSize);
+                    
+                    if (pageList < 1){
+                        pageList = 1;
+                    }
+                    if (pageList > totalPageList){
+                        pageList = totalPageList;
+                    }
+                    var startPageList = (pageList - 1) * opts.pageSize + 1;
+                   
+                    var endPageList = startPageList + opts.pageSize - 1;
+
+                    if (startPageList < 1){
+                        startPageList = 1;
+                    }
+                    if (endPageList > totalPage){
+                        endPageList = totalPage;
+                    }
+                    if (endPageList < 1){
+                        endPageList = 1;
+                    }
+                    
+                    let div = document.createElement("div"),
+                        ul = document.createElement("ul");
+                        
+                        div.setAttribute("class", "paging");
+
+                    ul.append(this.getNumberLink(1, 'FIRST', 'firstPage'));
+                    if((startPageList - 1) > 0){
+                        ul.append(this.getNumberLink((startPageList - 1), 'PREV', 'prevPage'));
+                    }
+                    
+                    for (var i = startPageList; i <= endPageList; i++) {
+
+                        ul.append(this.getNumberLink(i, null, ((opts.pageNo == i)? 'selected': '')));
+                        if (i < endPageList) {
+                            // separate action
+                        }
+                    }
+                    if((endPageList + 1) < totalPage){
+                        ul.append(this.getNumberLink((endPageList + 1),'NEXT', 'nextPage'));
+                    }
+                    ul.append(this.getNumberLink(totalPage, 'LAST', 'lastPage'));
+                    div.append(ul);
+                    
+                    return div;
+                },
+                getNumberLink : function(pageNo, text, className) {
+                    let li = document.createElement("li"), 
+                        span = document.createElement("span");
+                    li.setAttribute("class", className);
+                    span.setAttribute("title", text || pageNo);
+                    
+                    let str = pageNo;
+                    if(text != null && text != ''){
+                        str = text;
+                    }
+                    span.innerText = str;
+                    span.addEventListener("click", function(){
+                        var frm = gridDiv.children("form");
+                        frm.get(0).pageNo.value = pageNo;
+                        frm.get(0).listCnt.value = cnt;
+                        this.gridPage = pageNo;
+                        gridObj.madeAjaxGrid(this.gridPage);		
+                    });
+                    li.append(span);
+                    return li;
+                }
+            }).init();
+    }
 }
 
 
@@ -941,7 +1055,7 @@ $.fn.seGrid = function (data) {
 				}
 				
 				if(setting.paging.use || setting.footer.length > 0 ){
-				//	gridContainer.append(fGrid.gridFooter(jsonObj.allListCnt));
+					gridContainer.append(fGrid.gridFooter(jsonObj.allListCnt));
 				}
 				
 				if($gridArea.children().is(".fleta_grid")){
@@ -995,7 +1109,7 @@ $.fn.seGrid = function (data) {
 					}
 					setData = objData;
 				}
-				var inputArr = ['histMonth', 'filter', 'paging', 'pageNo', 'listCnt', 'searchWord', 'orderCol', 'unit', 'columns'];
+				var inputArr = ['filter', 'paging', 'pageNo', 'listCnt', 'searchWord', 'orderCol', 'unit', 'columns'];
 
 				for(var n in setData){
 					if(inputArr.indexOf(n) < 0){
@@ -1008,7 +1122,7 @@ $.fn.seGrid = function (data) {
 						val = setData[inputArr[i]];
 					};
 					if(inputArr[i] == "listCnt"){
-						val = getCookie("fletaListSize") || 1;
+						val = 20 //getCookie("fletaListSize") || 20;
 					}
 					if(inputArr[i] == "paging"){
 						val = setting.paging.use;
@@ -1158,397 +1272,7 @@ var fui = {
 					gridHeight.apply(gridContainer);
 					gridCellWidth.apply(gridContainer);
 				},
-				gridMenu : function(){
- 					let gridOptions = document.createElement("div");
-					let	gridOptRight = document.createElement("div");
-					
-					gridOptions.setAttribute("class","grid_options");
-					gridOptRight.setAttribute("class","grid_opt_right");
-					
-					/*
-					 * Grid Opttions
-					 */
-					if(gridDefOpt.option.use){
-					
-	 					// Option Objects
-						if(gridDefOpt.option.objects.length > 0){
-							var objects = gridDefOpt.option.objects;
-							for(let obj of objects){
-								let objNm = obj.attr("name");
-								if(objNm){
-									var objInp = $("<input type='hidden' name='"+objNm+"' value='"+obj.val()+"' />").appendTo(gridDiv.children("form"));
-									obj.on("change", function(){
-										objInp.val($(this).val());
-										gridObj.madeAjaxGrid();
-									}).css("margin-left",5);
-								}
-								gridOptions.append(obj.get(0));
-							}
-						}
-						
-						// Export
-						var expBtn = $("<button id='exportBtn' class='white_l selectBtn'>Export</button>");
-						var expSel = $("<select>").attr("name","exportBtn").addClass("hide");
-						expSel.append("<option value='gridPrint'>Print</option>");
-						expSel.append("<option value='excelDown'>Excel</option>");
-						gridOptions.append(expBtn.get(0), expSel.get(0));
-						expBtn.gridSelectmenu(gridDiv, gridDefOpt);
-						
-						// show/hide columns 
-						if(gridDefOpt.option.columnHide){
-							let columnBtn = document.createElement("button");
-							columnBtn.setAttribute("id","grid_column_btn");
-							columnBtn.setAttribute("class","white_l");
-							columnBtn.innerText = "Column";
-							columnBtn.addEventListener("click", function(){
-								gridObj.gridColumnOption.apply($(this));
-							});
-							gridOptions.append(columnBtn); 
-						}
-	
-						// favorite
-						if(gridDefOpt.option.favorite){
-							var optBtnFavo = $("<p>").attr("title","Favorite");
-							var favoOpt = $("<span>",({id:"grid_excel_btn", "class":"grid_option_btn favorite"})).on("click", function(){
-								var filter = gridDiv.children("form").children("[name=filter]").val();
-								var opt = {
-										type : "L",
-										url : uri+'/popup/layer/user/favorite',
-										data : {
-												mid : gridDefOpt.data.menuId,
-												fid :  gridDefOpt.data.fid,
-												filter : filter
-										},
-										width : 370
-								}
-								fui.popup(opt);
-							});
-							optBtnFavo.append(favoOpt);
-							gridOptions.append(optBtnFavo);
-						}
-						
-						/* 
-						 * option etcOption
-						 */
-						if(gridDefOpt.option.etcOption.length > 0){
-							(function(){
-								var optBtnEtc = $("<p>").attr("title","Etc Option");
-								var etcOpt = $("<span>",({"id":"grid_etc_btn", "class":"grid_option_btn etcOptBtn"})).on("click", function(){
-									var el = $(this).parent(),
-										top = el.get(0).offsetTop, 
-										left = el.get(0).offsetLeft, 
-										height = el.height(),
-										bottom = top + height;	
-									gridDiv.find(".etcOption").show().css({"left":left, "top":bottom});                                                     
-								//	optBtnEtc.addClass("click");
-								});
-								
-								optBtnEtc.append(etcOpt);
-								gridOptions.append(optBtnEtc);
-								
-								gridOptions.append(gridObj.gridEtcOption.apply(optBtnEtc, [gridDefOpt.option.etcOption])); 
-							})();
-							
-						}
-						// search
-						if(gridDefOpt.option.search){
-							gridOptRight.append(gridObj.madeSearch());					
-						}
-						// unit selectbox 
-						if(gridDefOpt.option.unit.use && gridDefOpt.option.unit.select){
-							gridOptRight.append(gridObj.gridUnit());			
-						}
-						
-						// option area append
-						gridOptions.append(gridOptRight);
-						
-					}else{
-						gridOptions.style.height = "0px"
-					}
-					
-					return gridOptions;
-				}, 
-				gridHead : function(json){
-					let hd_div = document.createElement('div'), 
-						hd_tbl = document.createElement('table'),
-						colgrp = document.createElement('colgroup'),
-						hd_thead = document.createElement('thead'),
-						hd_tr = document.createElement('tr'), 
-						hd_sub_tr = document.createElement('tr'),
-						hd_sub_sub_tr = document.createElement('tr'),
-						thClass;
-					hd_div.setAttribute("class", "fui_grid_head");
-					
-					for(var i=0, len=column.length; i<len; i+=1){	
-						
-						/* 일반 컬럼, 
-						 * 최상위 컬럼 
-						 * */
-						if(!column[i].unused && column[i].caption){
-							let col = document.createElement('col');
-							let th = document.createElement('th');
-							let field = column[i].field;
-							let captions = column[i].caption,
-								caption, captionDiv;
-							
-							if(column[i].clas){
-								thClass = column[i].clas;
-							}else{
-								thClass = captions;
-							}
-							th.setAttribute("class", thClass);
-							
-							captionDiv = document.createElement('div');
-							//element object
-							if(typeof captions === "object"){
-								if(captions.type = "checkbox"){
-									captions.addEventListener("click", function(){
-										var ta = gridDiv.children(".fleta_grid").children('.fui_grid_body').children("table");
-										if(captions.checked){
-											ta.find("input:checkbox").prop("checked",true);
-										}else{
-											ta.find("input:checkbox").prop("checked",false);
-										}
-									});
-								}else if($(captions).is("select")){
-									var $obj = $(captions),
-										objNm = $obj.attr("name");
-									if(objNm){
-										var objInp = $("<input>",({"type":"hidden","name":objNm,"value":obj.val()})).appendTo(gridDiv.children("form"));
-										$obj.on("change", function(){
-											objInp.val($(this).val());
-											gridObj.madeAjaxGrid();
-										});
-									}
-								}
-								captionDiv.append(captions);
-							}else{
-								caption = gridObj.madeLanguage.langCaption(captions);
-								captionDiv.innerHTML = caption;
-							}
-							
-							
-							th.append(captionDiv);
-							
-							/* 서브 컬럼이 존재 할때 
-							 * 상위 컬럼의 colspan 설정때문에 필요. 
-							 * */
-							if(!column[i].unused && column[i].sub){
-								var sub_len;
-								
-								// 특별한 스트링으로 넘어왔을때 (switch).
-								if(typeof column[i].sub === "string"){
-									try {
-										var key = column[i].sub;
-										var obj;
-										
-										if(is_array(json)){
-											obj = json[0][key];
-										}else{
-											obj = json[key];
-										}
-										sub_len = obj.length;
-									} catch (e) {
-										// TODO: handle exception
-										console.log(e);
-									}
-								}else{
-									// 서브컬럼이 object(array)로 넘어왔을때
-									sub_len = column[i].sub.length;
-									
-									// 서브의 서브가 있을때
-									var sub_sub_len = 0,
-										sub_sub = column[i].sub;
-									
-									for(var s=0; s<sub_len; s++){
-										if(sub_sub[s].sub){
-											sub_sub_len += sub_sub[s].sub.length - 1;
-										}
-										if(sub_sub[s].unused){
-											sub_sub_len -= 1;
-										}
-									}
-									sub_len += sub_sub_len;
-								}
-								 
-								th.attr({"colspan":sub_len});
-								
-							}else{
-								th.setAttribute("rowspan","3");
-								th.setAttribute("col",i)
-								th.append(captionDiv);
-								
-								if(column[i].name){
-									gridObj.madeSort(captionDiv, column[i].name);
-								}
-								if(captions){ // 언어 json에 공백값이면 사용하지 않음.
-									col.style.width = column[i].size + "px";
-									col.setAttribute("class", thClass);
-									colgrp.append(col);
-								}
-							}		
-							if(captions){ // 언어 json에 공백값이면 사용하지 않음.
-								hd_tr.append(th);
-							}
-							
-							if(i == 0 ){
-								th.style.borderLeft = "none";
-							}
-							if(i == COL_SIZE){
-								th.style.borderRight = "none";
-							}
-						}
-						
-						/* 서브 컬럼이 존재 할때 */
-						if(!column[i].unused && column[i].sub){
-							var  sub_column = column[i].sub
-								,sub_len;
-							
-							// 특별한 스트링으로 넘어왔을때 (switch).
-							if(typeof column[i].sub === "string"){
-								try {
-									var key = column[i].sub;
-									var obj;
-									if(is_array(json)){
-										obj = json[0][key];
-									}else{
-										obj = json[key];
-									}
-									sub_len = obj.length;
-								} catch (e) {
-									console.log(e);
-								}
-								
-								for(var j=0; j<sub_len; j+=1){	
-									if(obj[j]){
-										var sub_td = $('<th>'),
-											sub_col = $('<col>'),
-											sub_caption = obj[j],
-											captionTxt;
-										
-										if(typeof sub_caption === "object"){
-											sub_caption = Object.keys(sub_caption)[0];
-										}
-										
-										captionTxt = $('<div>').html(sub_caption);
-										sub_td.append(captionTxt); //.attr("title",sub_caption.replace("<br/>", " "));
-										
-										if(column[i].clas){
-											thClass = column[i].clas+"_"+j;
-										}
-										sub_col.addClass(thClass);
-										sub_td.addClass(thClass);
-										
-										hd_sub_tr.append(sub_td);
-										colgrp.width(column[i].size).append(sub_col);
-									}
-									
-								}
-							// 일반적인 서브 컬럼
-							}else{
-								sub_column = column[i].sub;
-								sub_len = sub_column.length;
-															
-								for(var j=0; j<sub_len; j+=1){	
-									if(!sub_column[j].unused && sub_column[j].caption){
-										var sub_td = $('<th>'),
-											sub_col = $('<col>'),
-											sub_field = sub_column[j].field;	
-										
-										var subCaptions = sub_column[j].caption,
-											sub_caption = subCaptions.split("[")[0],
-											sub_class;
-
-										sub_caption = gridObj.madeLanguage.langCaption(subCaptions);
-																				
-										if(column[i].clas){
-											thClass = column[i].clas;
-										}
-										sub_class = thClass + "-" + j;
-										sub_td.addClass(sub_class);
-										sub_col.width(sub_column[j].size).addClass(sub_class);
-										//	jquery element object
-										if(typeof sub_caption === "object"){
-	
-										}else{	
-											var captionTxt = $('<div>').html(sub_caption);
-											sub_td.append(captionTxt); //.attr("title",sub_caption.replace("<br/>", " ").replace("<em>","").replace("</em>",""));
-											
-											if(sub_column[j].name){
-												gridObj.madeSort(captionTxt, sub_column[j].name);
-											}
-										}
-										
-										// 서브의 서브가 있을때
-										var ssub_len;
-										if(sub_column[j].sub){
-											var ssub_colum = sub_column[j].sub;
-											ssub_len = ssub_colum.length;
-											sub_td.attr({"colspan":ssub_len});
-											
-											for(var s=0; s<ssub_len; s+=1){
-												var ssub_td = $('<th>'),
-													ssub_col = $('<col>').addClass(sub_class);
-												var ssubCaptions = ssub_colum[s].caption,
-													ssub_caption = ssubCaptions.split("[")[0];
-	
-												ssub_caption = gridObj.madeLanguage.langCaption(ssubCaptions);
-												
-												var scaptionTxt = $('<div>').html(ssub_caption);
-												ssub_td.append(scaptionTxt); //.attr("title",ssub_caption.replace("<br/>", " ").replace("<em>","").replace("</em>",""));
-												
-												if(ssub_colum[s].name){
-													gridObj.madeSort(scaptionTxt, ssub_colum[s].name);
-												}
-												hd_sub_sub_tr.append(ssub_td);
-												
-												if(s > 0){
-													colgrp.append(ssub_col);
-												}
-											}
-										}else{
-											sub_td.attr({"rowspan":"2"});
-										}
-	
-										if(gridDefOpt.height === "none" || gridDefOpt.height == 0){
-											if( i+j == len-1){
-												sub_td.addClass("last");
-											}
-										}
-										
-										if(sub_caption){ // 언어 json에 공백값이면 사용하지 않음.
-											hd_sub_tr.append(sub_td);
-											colgrp.append(sub_col);											
-										}
-									}
-									
-								}
-								/* sub for */
-								
-							}
-							
-						}
-						/* sub column end */
-					}		
-					if(gridDefOpt.height === "auto" || gridDefOpt.height === "dash" || gridDefOpt.height > 0){
-						let lastCol = document.createElement("col");
-						let lastTh = document.createElement("th");
-						
-						lastCol.setAttribute("class", "last");
-						lastCol.style.width = "18px";
-						
-						lastTh.setAttribute("class", "last");
-						lastTh.setAttribute("rowspan", "3");
-						
-						hd_tr.append(lastTh);
-						colgrp.append(lastCol);
-					}
-					
-					hd_thead.append(hd_tr, hd_sub_tr, hd_sub_sub_tr);
-					hd_tbl.append(colgrp, hd_thead);
-					hd_div.append(hd_tbl);
-					return hd_div;
-				},
+				
 				gridNoBody : function(){	
 					let bd_div = document.createElement("div");
 					bd_div.setAttribute("class","fui_grid_body no_data");
@@ -1563,454 +1287,8 @@ var fui = {
 					bd_div.append(err_div);
 					return bd_div;
 				},
-				gridBody : function(json){	
-					let frm = gridDiv.children("form").get(0);
-					let bd_div = document.createElement("div"),
-						bd_tbl = document.createElement('table'),
-						colgrp = document.createElement('colgroup'),
-						bd_tbody = document.createElement('tbody');
-					
-					let	unit = frm.unit.value,
-						pageNo = frm.pageNo.value,
-						listCnt = getCookie("fletaListSize") || frm.listCnt.value,
-						clas, subNum = 0, ssubNum = 0;
-					
-					bd_div.setAttribute("class","fui_grid_body");
-						
-					var colClas;
-					for(var i=0; i<COL_SIZE; i+=1){
-						
-						if(typeof column[i].sub === "object"){
-							var sub_column = column[i].sub,
-								sub_len = sub_column.length,
-								sub_class, ssub_class;
-							
-							for(var j=0; j<sub_len; j+=1){	
-								var sub_caption = gridObj.madeLanguage.langCaption(sub_column[j].caption);
-								if(!sub_column[j].unused && sub_caption){
-									var sub_col =  document.createElement('col');	
-									sub_class = column[i].clas + "-" + j;
-									if(column[i].clas){
-										sub_col.style.width =  sub_column[j].size + "px";
-										sub_col.setAttribute("class", sub_class);
-									}else{
-										console.log("sub column no class value.");
-									}
-									
-								}
-							}
-						}else{
-							// normal 
-							var useCaption = gridObj.madeLanguage.langCaption(column[i].caption);
-							if(!column[i].unused && useCaption){
-								var col = document.createElement('col');
-								colClas = column[i].clas || column[i].caption;
-								col.style.width =  column[i].size + "px";
-								col.setAttribute("class", colClas);
-								colgrp.append(col);
-							}
-						}						
-					}
-					// cols set end
-					
-					if(gridDefOpt.height === "auto" || gridDefOpt.height > 0){
-						var col = document.createElement('col');
-						col.style.width = "0px";
-						col.setAttribute("class", "last");
-						colgrp.append(col);
-					}
-					
-					//data loop
-					for(let idx=0; idx<json.length; idx++){
-						var $this = json[idx];
-						var bd_tr = document.createElement('tr');
-						var fieldClass;
-						
-						for(var i=0, u=0, w=0; i<COL_SIZE; i+=1){
-							var titleStr;
-							let bd_td = document.createElement('td'), 
-								spn = document.createElement('span'),
-								val = null, convVal, columnUse = false,
-								field = column[i].field,
-								subColumn, ssubColumn;
-							
-							spn.style.display = "block";
-							
-							// 컬럼 사용 체크
-							// caption 키가 있을경우.
-							if(column[i].caption){   
-								if(gridObj.madeLanguage.langCaption(column[i].caption)){ 
-									// lang 값이 있을 경우 사용.
-									columnUse = true;
-								}else{ 
-									// lang 값이 없을 경우 사용 안함.
-									columnUse = false;
-								}
-							}else{ 
-								// caption 키가 없을 경우 서브 필드로서 무조건 사용.
-								columnUse = true;
-							}
-							
-							// value 가져오기
-							if(column[i].unused || !columnUse){
-								u += 1; // 사용안하는 컬럼의 개수.
-							}else if(!column[i].unused && columnUse){
-								/* 
-								 * cell에 class달기 
-								 */
-								// 사용 안하는 컬럼의 개수를 빼고 계산
-								fieldClass = $(colgrp).children().eq(w-u).attr("class");
-								bd_td.append(spn);
-								bd_td.setAttribute("class", fieldClass);								
-								if(i == 0 ){
-									bd_td.style.borderLeft = "none";
-								}
-								// 사용 하는 컬럼과 비교하여 필드 생성.
-								// 이 안에 반복문이 있어선 안됨
-								/*for(let node of colgrp.childNodes){
-									console.log(node);
-									if($(this).attr('class') === fieldClass){
-										columnUse = true;
-									}
-								};*/
-								columnUse = true;
-								if(field){ // 일반적인
-									var parseReg  = /(?:[\-|\+|\*|\/])/g,
-										parseStr  = /(?:[^\-|\+|\*|\/]+)/g;
-									// field가 배열일 경우
-									if(is_array(field)){	
-										val = [];
-										for(let f of field){
-											if(typeof f === "object"){ // 배열안에 element 객체일 경우.
-												var ele = f.cloneNode(true);
-												var eleVal = specialCharConv($this[ele.value]);
-												ele.value = eleVal;
-												val.push(ele);
-											}else{
-												// 일반 적인 텍스트일 경우..
-												if(f.indexOf("[") > -1){
-													var fnm = f.split("[")[0];
-													var fid = f.split("[")[1].replace("]","");
-													
-													val = $this[fnm].split(",")[fid];
-												}
-											}
-										}
-									}else if(parseReg.test(field)){
-										var opt = field.match(parseReg),
-											fields = field.match(parseStr);
-										val = Number($this[fields[0].trim()]);
-										for(var g=1; g<fields.length; g++){
-											var sign = opt[g-1];
-											var val2 = $this[fields[g].trim()];
-											val = eval(Number(val)+sign+Number(val2));
-										}
-									//	val = eval(Number(val1)+sign+Number(val2));
-									}else{
-										val = $this[column[i].field];	
-										if(typeof val === 'string'){
-											val = val.trim();
-										}
-										titleStr = val;
-									}
-								}else{ // 특수한경우
-									// 서브컬럼이 String or Object 으로 넘어왔을때, 서브의 스트링값으로 json에서 찾는다.
-									if(typeof column[i].sub === "string"){
-										var key = column[i].sub;
-										var obj;
-										if(is_array(json)){
-											obj = json[0][key];
-										}else{
-											obj = json[key];
-										}
-										sub_len = obj.length || 1;
-										
-										for(var j=0; j<sub_len; j+=1){
-											if(j>0){
-												w += 1;
-											}
-											var valStr = obj[j];
-											/*
-											*/
-											if(valStr){
-												var objVal = $this[valStr], objKey,
-													objSpn = $("<span>"),
-													objTd = $('<td>').append(objSpn);
-												
-												
-												if(typeof valStr === "object"){
-													objKey = Object.keys(valStr)[0];
-													objVal = valStr[objKey];
-												}	
-												
-												if(column[i].link && j==0){
-													var func = column[i].link.func,
-														args = column[i].link.args;	
-													inherit(childLinked, gridLinked);
-													var cspn = new childLinked();	
-													cspn.json = $this;
-													objSpn = cspn.linked(objSpn, objVal, func, args);
-												}
-												
-												objSpn.html(objVal)
-												objTd.addClass(column[i].clas);
-												bd_tr.append(objTd);
-											}else{
-												var objSpn = $("<span>").html(""),
-													objTd = $('<td>').append(objSpn);
-												
-												objTd.addClass(column[i].clas);
-												bd_tr.append(objTd);
-											}
-										}
-										
-										val = true;
-										
-									}else{
-										if(Number(pageNo) < 1 ){
-											pageNo = 1;
-										}
-										val = idx + 1 + (listCnt * (pageNo-1)); // number
-									}
-								}
-								
-								/*
-								 *  컬럼에 func가 있을경우.
-								 */
-								if(column[i].func){
-									var fnm = column[i].func.name, 
-										args = column[i].func.args, 
-										rtun = column[i].func.rtun,
-										fag = [];
-									if(args){
-										if(typeof args === "object"){
-											for(var a=0; a<args.length; a=a+1){
-												var colVal;
-												if(!$this.hasOwnProperty(args[a])){
-													if(a==0){
-														colVal = "";														
-													}else{
-														colVal = args[a];	
-													}
-												}else{
-													colVal = $this[args[a]];
-												}
-												fag.push(colVal);
-											}
-										}else{
-											var colVal;
-											if(typeof $this[args] === "undefined"){
-												colVal = "";
-											}else{
-												colVal = $this[args];
-											}
-											fag.push(colVal);
-										}
-										
-									}
-									if(rtun || typeof rtun == "undefined"){
-										val = eval(fnm).apply(bd_td, fag);
-									}else{
-										eval(fnm).apply(null, fag);
-									}
-								}
-								
-								/*
-								 *  컬럼에 링크가 있을경우.
-								 */
-								if(column[i].link){
-									var func, args, terms, 
-										booLink = true;
-									func = column[i].link.func || column[i].link;
-									if(column[i].link.args)	{
-										args = column[i].link.args;	
-									}
-									// 링크를 거는데 조건이 있을경우.
-									if(column[i].link.terms){
-										terms = column[i].link.terms;
-										for(var t=0; t<terms.length; t=t+1){
-											if(eval(terms[t])){
-												booLink = true;
-											}else{
-												booLink = false;
-											}
-										}
-									}else{
-										// 0이면 링크 없음
-										if(val === 0 || val === "0" || !val || val === "NOT INS."){
-											booLink = false;
-										}									
-									}
-									if(booLink){
-										inherit(childLinked, gridLinked);
-										var cspn = new childLinked();
-										cspn.json = $this;
-										spn = cspn.linked(spn, val, func, args);				
-									}
-								} // link end 
-								
-								//background
-								if(typeof column[i].bgcolor != "undefined"){
-									var bgcolor = column[i].bgcolor;
-									bd_td.style.backgroundColor = bgcolor;
-									
-								}
-								// align
-								if(typeof column[i].align != "undefined"){
-									var aign = column[i].align;
-									bd_td.style.textAlign = aign;
-									spn.style.display = "inline-block";
-									if(aign === "left"){
-										spn.style.marginLeft = "4px";
-									}else if(aign === "right"){
-										spn.style.marginRight = "4px";
-									}
-								}
-							
-								// unit gridDefOpt
-								if(gridDefOpt.option.unit.use){
-									var unitVal;
-									
-									if(typeof column[i].unit != "undefined"){
-										unitVal =  column[i].unit;
-									}else{
-										if(unit === ""){
-											unitVal = gridDefOpt.option.unit.basic || gridDefOpt.option.unit.type[0];
-										}else{
-											unitVal = unit;
-										}
-									}	
-									
-									if(unitVal != ""){
-										var func = gridDefOpt.option.unit.func;
-										if(typeof val === "object"){
-											bd_td.style.textAlign = "right";
-											$(val).children().each(function(){
-												var tispn = $(this);
-												var uv = tispn.text();
-												uv = func.apply(null,[uv, unitVal]);
-												tispn.text(uv);
-											//	tispn.attr({"title" : uv+unitVal});
-											});									
-										}else{
-											
-											convVal = func.apply(null,[val, unitVal]);
-											if(unitVal === "TB" || unitVal === "GB" || unitVal === "MB"){
-												bd_td.style.textAlign = "right";
-												spn.style.display = "inline-block";
-												spn.style.marginRight = "4px";
-												titleStr = convVal + unitVal;
-												val = convVal;
-											}else if(unitVal === "bar"){
-												bd_td.setAttribute("class", "sum avg");
-												
-												var color = barColor(convVal),
-													perWidth = 0;
-												
-												if(convVal > 100 ){
-													perWidth = 100;
-												}else{
-													perWidth = convVal;
-												}
-												if(convVal >= 60){
-													spn.style.color = "#fff";
-												}
-												
-												spn.style.display = 'block';
-												spn.style.width = perWidth+'%';
-												spn.style.background = color;
-												
-												val = Math.round(convVal);
-												titleStr = val + "%";
-											}else if(unitVal === "%"){
-												val = Math.round(convVal);
-												if(val >= 90){
-													spn.style.color = "#db600e";
-													spn.style.fontWeight = "bold";
-												}
-												val += "%";
-												titleStr = val;
-												bd_td.setAttribute("class", "avg");
-											}else if(unitVal === "date" || unitVal === ","){
-												titleStr = val;
-												val = convVal;
-											}else {
-												gridObj.addClass.sum(bd_td);	
-												titleStr = val + unitVal;
-											}
-											
-											
-										}
-									}
-									
-								}// unit setting end
-								
-								if(is_array(val)){
-									for(let v of val){
-										spn.append(v);
-									}
-								}else if(typeof val === "undefined"){
-								
-								}else{
-									spn.append(val);
-								}
-								bd_td.setAttribute("title", titleStr);
-
-								if(field || typeof column[i].sub !== "string"){
-									bd_tr.append(bd_td);
-								}
-							}// columnUse true
-							
-							w += 1;
-						} // for end
-						
-						let lastTd = document.createElement("td");
-						lastTd.setAttribute("class", "last");
-						bd_tr.append(lastTd);
-						
-						bd_tbody.append(bd_tr);
-						
-					};
-					//json for end
-					
-					if(tally.total.use){
-						if(tally.total.type === "json"){
-							gridObj.sum.madeTotal(bd_tbody);																	
-						}else if(tally.total.type === "table"){
-							
-						}else{
-							gridObj.sum.allTotal(bd_tbody);
-						}
-					}
-					if(tally.sub.use){		
-						gridObj.sum.subTotal(bd_tbody);	
-					}
-	
-					bd_tbl.append(colgrp,bd_tbody);
-					bd_div.append(bd_tbl);
-					
-					return bd_div;
-				},
-				gridFooter : function(allListCnt) {
-					var gridFooter = $('<div>').addClass("fui_grid_footer");
-					// paging
-					if(gridDefOpt.paging.use){
-						gridDefOpt.paging.totalSize = allListCnt;
-						gridFooter.append(gridObj.paging());
-						gridFooter.append(gridObj.madeListCntBox());
-					}
-					// etc Objects - button
-					if(gridDefOpt.footer.length > 0){
-						var footerObj = gridDefOpt.footer;
-						var buttonArea = $('<div>',({"id":"buttonArea"}));
-						$(footerObj).each(function(i){
-							var obj = $(this);
-							buttonArea.append(obj);
-						});
-						gridFooter.append(buttonArea);
-					}
-					return gridFooter.get(0);
-				},
+				
+				
 				madeLanguage : {
 					langCaption : function(data){
 						var langJson = fui.lang.json;
@@ -2973,89 +2251,7 @@ var fui = {
 						}
 					};
 				},
-				paging : function(){
-					var frm = gridDiv.children("form");
-					var cnt = getCookie("fletaListSize") && frm.get(0).listCnt.value;
-					var opts = {
-							totalSize : gridDefOpt.paging.totalSize,
-					        pageNo : gridPage,
-					        listSize : cnt,  // 글 목록 갯수
-					        pageSize : 10  //페이지 갯수
-					};
-					return ({
-				            init : function() {
-				                var totalPage = Math.ceil(opts.totalSize/opts.listSize),
-				                	totalPageList = Math.ceil(totalPage/opts.pageSize),
-				                	pageList = Math.ceil(opts.pageNo/opts.pageSize);
-				                
-				                if (pageList < 1){
-				                	pageList = 1;
-				                }
-				                if (pageList > totalPageList){
-				                	pageList = totalPageList;
-				                }
-				                var startPageList = (pageList - 1) * opts.pageSize + 1;
-				               
-				                var endPageList = startPageList + opts.pageSize - 1;
-
-				                if (startPageList < 1){
-				                	startPageList = 1;
-				                }
-				                if (endPageList > totalPage){
-				                	endPageList = totalPage;
-				                }
-				                if (endPageList < 1){
-				                	endPageList = 1;
-				                }
-				                
-				                let div = document.createElement("div");
-				                	ul = document.createElement("ul");
-				                	
-				                	div.setAttribute("class", "paging");
-
-				                ul.append(this.getNumberLink(1, 'FIRST', 'firstPage'));
-				                if((startPageList - 1) > 0){
-				                	ul.append(this.getNumberLink((startPageList - 1), 'PREV', 'prevPage'));
-				                }
-				                
-				                for (var i = startPageList; i <= endPageList; i++) {
-
-				                	ul.append(this.getNumberLink(i, null, ((opts.pageNo == i)? 'selected': '')));
-				                    if (i < endPageList) {
-				                    	// separate action
-				                    }
-				                }
-				                if((endPageList + 1) < totalPage){
-				                	ul.append(this.getNumberLink((endPageList + 1),'NEXT', 'nextPage'));
-				                }
-				                ul.append(this.getNumberLink(totalPage, 'LAST', 'lastPage'));
-				                div.append(ul);
-				                
-				                return div;
-				            },
-				            getNumberLink : function(pageNo, text, className) {
-				            	let li = document.createElement("li"), 
-				            		span = document.createElement("span");
-				            	li.setAttribute("class", className);
-				            	span.setAttribute("title", text || pageNo);
-				            	
-				            	let str = pageNo;
-				            	if(text != null && text != ''){
-				            		str = text;
-				            	}
-			                	span.innerText = str;
-			                	span.addEventListener("click", function(){
-			                		var frm = gridDiv.children("form");
-									frm.get(0).pageNo.value = pageNo;
-									frm.get(0).listCnt.value = cnt;
-									gridPage = pageNo;
-			                		gridObj.madeAjaxGrid(gridPage);		
-			                	});
-				                li.append(span);
-				                return li;
-				            }
-			        	}).init();
-				}
+				
 			};
 		},
 		langConverter : function(data){
